@@ -1,7 +1,7 @@
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
         typeof define === 'function' && define.amd ? define(factory) :
-            (global = global || self, global.$Q = factory());
+            (global = global || self, global.Fun = factory());
 }(this, function () {
     'use strict';
 
@@ -11,6 +11,8 @@
             return Object.prototype.toString.call(o) === "[object " + str + "]"
         }
     }
+
+
 
 
 
@@ -52,8 +54,6 @@
     }
 
 
-
-
     function extend(target, sourse) {
         var i = 1,
             args = [].slice.apply(arguments),
@@ -75,6 +75,7 @@
     }
 
 
+
     function momorize(f) {
         var cache = Object.create(null);
         return function () {
@@ -83,6 +84,7 @@
             return cache[arg][0];
         }
     }
+
 
 
     function remove(arr, item) {
@@ -116,14 +118,19 @@
         str,
         lowerCase
     ) {
-        var map = Object.create(null),
+        var getMap = null,
+            map = Object.create(null),
             list = str.split(",");
-        for (var i = 0, l = list.length; i < l; i++) {
-            map[list[i]] = true;
+        if (!str == "") {
+            for (var i = 0, l = list.length; i < l; i++) {
+                map[list[i]] = true;
+            }
         }
+
+        function set(name) { map[name] = true; }
         return lowerCase
-            ? function (val) { return map[val.toLowerCase()]; }
-            : function (val) { return map[val]; }
+            ? (getMap = function (val) { return map[val.toLowerCase()]; }, getMap.set = set, getMap)
+            : (getMap = function (val) { return map[val]; }, getMap.set = set, getMap)
     }
 
 
@@ -146,7 +153,7 @@
             return (f.length <= args.length) ? f.apply(f, rev ? args.reverse() : args) : curry.apply(f, [f, args, rev]);
         }
     }
-    $Q.curry = curry;
+    Fun.curry = curry;
 
     function $curry(index, f, arg, rev) {
         var arg = arg || [];
@@ -232,66 +239,24 @@
         }
     }
 
-    // var a=sentry(2,function(){console.log("我执行了",arguments)})
-    // a("name",2)
-    // a("aa",2)
 
-    //  compose :: (a -> b) -> (a -> b) -> a
-    // function compose() {
-    //     var arg = [].slice.call(arguments);
-    //     return function (x) {
-    //         for (
-    //             var l = arg.length - 2,
-    //             sourse = arg[l + 1](x),
-    //             fn = arg[l];
-    //             l + 1;
-    //             fn = arg[--l]
-    //         ) {
-    //             sourse = fn(sourse)
-    //         }
-    //         return sourse;
-    //     }
-    // }
-
-    //  compose :: (a -> b) -> (a -> b) -> a
-    // function compose() {
-    //     if (!arguments.length) { return; }
-    //     var arg = [].slice.call(arguments);
-    //     return function (x) {
-    //         for (
-    //             var l = arg.length - 1,
-    //             i=1,
-    //             sourse = arg[0](x),
-    //             fn = arg[1];
-    //             i < l;
-    //             fn = arg[++i]
-    //         ) { 
-    //             sourse = fn(sourse)
-    //         }
-    //         return sourse;
-    //     }
-    // }
-
-    function $compose() {
-        var arg = [].slice.call(arguments);
-        return function (x) {
-            arg.reduce(function (a, b) {
-                return $(b)(a);
-            }, $(arg.shift())(x))
-        }
-    }
-
-
-    function _compose() {
-        var arg = [].slice.call(arguments);
-
+    function _compose(args) {
+        var arg = isArr(args) ? args : [].slice.call(arguments),
+            self = this;
+        if (!arg.length) { err("_compose传值为空,请检查代码"); return function (x) { return x }; }
         return function _composeChild(x) {
+            if ((typeof arg[0] !== "string") && arg[0].name.search("sync") != -1) {
+                asyncFn(arg[0], _compose(arg.slice(1, arg.length)), x);
+                return undefined;
+            }
+
             var oneFn = arg.shift(),
                 $oneFn = $(oneFn),
                 ret = $oneFn(x),
                 index = 0,
                 sync = true,
                 fname = "";
+
             if (arg.length === 0) { return ret; }
             if (!ret) {
                 if (noErrorMethods($oneFn.name)) { return; }
@@ -301,7 +266,8 @@
             arg.every(function (f, i) {
                 if ((fname = f.name) && fname.search("sync") != -1) {
                     sync = false;
-                    asyncFn(f, _compose.apply(this, arg.splice(i + 1, arg.length - 1)), ret);
+                    if (i === arg.length - 1) { err("asyn为最后的函数,参数fn将不会进行任何操作"); return; }
+                    asyncFn(f, _compose(arg.slice(i + 1, arg.length)), ret);
                     return undefined;
                 }
                 index = i;
@@ -318,21 +284,61 @@
         }
     }
 
-    // function _compose() {
-    //     return compose2.apply(this,
-    //         [].slice.call(arguments).map(function (x) {
-    //             return $(x);
-    //         })
-    //     )
-    // }
+    function $compose(arg) {
+        var names = {},
+            arg = isArr(arg) ? arg : [].slice.call(arguments),
+            len = arg.length - 1,
+            sourse = null;
 
-    // function $compose() {
-    //     return compose.apply(this,
-    //         [].slice.call(arguments).map(function (x) {
-    //             return $(x);
-    //         })
-    //     )
-    // }
+        for (var i = 0; i <= len; i++) {
+            if (isFun(sourse = arg[i])) {
+                names[UnBindName(sourse.name)] = i;
+            }
+        }
+
+        this.names = names;
+        this.$Fs = arg;
+    }
+
+
+    $compose.prototype.set = function (name, val) {
+        var names = this.names,
+            fs = this.$Fs;
+
+        if (names[name] !== undefined) {
+            var fns = extend([], fs)
+            fns[names[name]] = val;
+            return new $compose(fns);
+        }
+
+    }
+
+    $compose.prototype.removeOld = function (name) {
+        var names = this.names,
+            fs = this.$Fs;
+
+        if (names[name] !== undefined) {
+            fs.splice(names[name], 1)
+            delete this.names[name];
+        }
+
+        return this;
+    }
+
+    $compose.prototype.setOld = function (name, val) {
+        var $name = this.names[name];
+        if ($name !== undefined) {
+            this.names[name] = $name
+            this.$Fs[$name] = val;
+        }
+        return this;
+    }
+
+    $compose.prototype.value = function (x) {
+        var self = this,
+            fns = self.$Fs;
+        return _compose(fns)(isExist(x) ? x : this.$data);
+    }
 
 
     function curObject(fn, str, obj) {
@@ -346,9 +352,14 @@
     }
 
     var arrayMethods = makeMap("filter,every,some,map,forEach,reduce,reduceRight,sort"),
-        objectMethods = makeMap("maybe,noMaybe,filterObj"),
+        objectMethods = makeMap("maybe,noMaybe,filterObj,strGetObj"),
+        custrom = makeMap(""),
         noErrorMethods = makeMap("maybeChild,noMaybeChild"),
+        $custrom = {},
         $objectMethods = {
+            strGetObj: function (f) {
+                return curry(strGetObj)(f())
+            },
             maybe: function maybe(f) {
                 var fns = f(),
                     items = null;
@@ -378,9 +389,14 @@
             }
         }
 
+
     var stringMethods = {
         console: function (x) {
             console.log("console=>", x);
+            return x;
+        },
+        alert: function (x) {
+            alert(x);
             return x;
         },
         empty: function empty(x) {
@@ -394,112 +410,39 @@
             return x;
         }
     }
+
+
     function asyncFn(f1, f2, data) {
         var names = f1.name.split("_");
-        return f1(sentry(names[1], f2), data);
+        return f1(sentry(!isNaN(+names[1]) ? names[1] : 1, f2), data);
+    }
+
+    function UnBindName(x) {
+        return x.replace(/bound\s?/, "")
     }
 
     function $(f) {
         if (isFun(f) && f.name) {
-            var name = f.name.split("_")[0];
+            var name = UnBindName(f.name).split("_")[0];
+
             if (arrayMethods(name)) {
-                return curry(function (fn, data) {
+                return function (data) {
                     if (!isArr(data)) { err("传入数据非数组类型"); return data; }
-                    return data[name](fn);
-                })(f);
-            }
-            if (objectMethods(name)) {
-                return $objectMethods[name](f);
+                    return data[name](f);
+                };
             }
 
+            if (objectMethods(name)) {
+                return $objectMethods[name](f);
+            };
+
+            if (custrom(name)) { return $custrom[name](f); };
         }
         if (typeof f === "string") {
-            return stringMethods[f]
+            return stringMethods[f];
         }
         return f;
     }
-
-    // compose(function () { return 2 }, alert, function () { return 2 })()
-
-
-    function filter_left5(a) {
-        return a < 5;
-    }
-
-    function async_2_a(a, b) {
-        setTimeout(() => a("name", extend({ name: 33333333 }, b)), 200);
-        a("name2", 2)
-        console.log("async执行")
-    }
-
-    function noMaybe_a(x) {
-        return {
-            "a": function (x) {
-                // console.log(x, 2);
-                return x;
-            }
-        }
-    }
-
-
-    // _compose(
-    //     function filter_right_5(x) {
-    //         return x > 5;
-    //     },
-    //     "console",
-    //     function sort(a, b) {
-    //         return a-b;
-    //     },
-    //     "console",
-    //     function sync_2_fn(fn, data) {
-    //         setTimeout(function () {
-    //             fn("name")("异步定义的名称");
-    //         }, 2000)
-    //         fn("大于五", data);
-    //     },
-    //     "console",
-    //     (x)=>document.body.innerHTML = x["大于五"]
-    // )
-    //     ([2,3,4,11,2,3,100,6,7])
-    
-    $compose(function (x) {
-        return x.filter(function (i) {
-            return i > 5;
-        })
-    },
-        function (x) {
-            console.log(x)
-        })
-        ([1, 2, 6, 7, 8, 9, 22])
-
-    _compose(
-        function filter_noName(x, i, key) {
-            return x.age > 20;
-        }
-        , "console"
-    )
-        ([{ name: "a1", age: 18 }, { name: "a2", age: 20 }, { name: "a3", age: 21 }, { name: "a4", age: 25 }])
-
-    // function allFn(fn, data) {
-    //     var ret;
-    //     if (isArr(data)) {
-    //         ret = [];
-    //         for (var i = data.length; i; i--) {
-    //             ret.unshift(fn(data[i]));
-    //         }
-    //     }
-
-    //     if (isObject(data)) {
-    //         ret = Object.create(null);
-    //         for (var i in data) {
-    //             ret[i] = fn(data[i])
-    //         }
-    //     }
-    //     if (isFun(data)) { ret = fn(data); }
-    //     return ret;
-    // }
-
-
 
     // 过滤函数结束
 
@@ -510,7 +453,7 @@
     })
 
 
-    function getMid(reg, str, fn, err) {
+    function getMid(reg, fn, str, err) {
         var val = str.replace(reg, function (a, b) {
             return fn(b);
         })
@@ -518,12 +461,19 @@
         return val;
     }
 
-    $Q.strMod = curry(
+    Fun.repMod = curry(
         fArg(getMid)
             .set(0, repMid("-"))
             .get()
-    );;
+    );
 
+    function strGetObj(str, obj) {
+        var ret = "";
+        return getMid(repMid("-", "{{-}}"), function (x) {
+            curObject(function (a) { ret = a; return a }, x, obj)
+            return ret;
+        }, str)
+    }
 
     function Event(name) {
         this._events = Object.create(null);
@@ -550,7 +500,7 @@
         this.evList[name] = false;
     }
 
-    Event.prototype.$emit = function $emit(name, data) {
+    Event.prototype.$emit = function $onEmit(name, data) {
         var self = this,
             datas = [].slice.call(arguments, 1),
             evs = null,
@@ -577,88 +527,76 @@
         return self;
     }
 
-    Event.prototype.$once = function (name, index) {
+    Event.prototype.$onOnce = function (name, index) {
 
     }
 
-    Event.prototype.$remove = function (name, index) {
+    Event.prototype.$onRemove = function (name, index) {
         (isExist(index) && (this._events[name].splice(index, 1))) || (this._events[name] = null);
     }
 
-    $Q.event = Event;
+    Fun.event = Event;
 
 
-    var $KFjudge = new $Q.event("judge");
+    function initState(F, data) {
+
+    }
+
+    function _init(F, data) {
+        if (!F) { return; }
+
+        extend(F, new $compose(data.compose.map(function (x) {
+            return isFun(x) ? x.bind(F) : x;
+        })))
+        F.$data = data.data;
+    }
 
 
-    // jiance :: a ->  temp [b]
-    function jiance(name, data) {
-        var temp = [];
-        if (isObject(data)) {
-            for (var i in data) {
-                !data[i] && (temp.push(i), err(name + "  注意--->值: " + i + "为空 => " + data[i], ";"));
-                (isObject(data[i]) || isArr(data[i])) && jiance(i, data[i]);
+    function Fun(data) {
+        var oneType = Object.prototype.toString.call(data).replace(/\[object (.*?)\]/, "$1");
+        if (oneType === "Function" || oneType === "String") {
+            if (arguments.length == 1) { return $(arguments[0]); }
+            return _compose.apply(this, arguments)
+        };
+        if (oneType === "Object") {
+            if (this instanceof Fun) {
+                _init(this, data);
+            } else {
+                return new Fun(data);
             }
         }
-
-        if (isArr(data)) {
-            data.forEach(function (a, b) {
-                !a && (temp.push(a), err(name + "  注意--->数组位置: " + b + "为空 => " + data[i], ";"));
-                (isObject(a) || isArr(a)) && jiance(a, a);
-            })
-        }
-        return temp;
-    }
-
-    $KFjudge.$on("empty", jiance)
-
-
-    function initState(Q, data) {
-        Q._data = data;
-        $Q.$KF && $KFjudge.$emit("empty", "外层对象", data);
-    }
-
-    function _init(Q, data) {
-        if (!Q) { return; }
-        initState(Q, data);
     }
 
 
+    initMethods(Fun);
 
-    function $Q(data) {
-        if (this instanceof $Q) {
-            _init(this, data)
-        } else {
-            return new $Q(data);
-        }
+    function initMethods(Fun) {
+        Fun.momorize = momorize;
+
+        extend(Fun.prototype, new Event("$Fun"), $compose.prototype,
+            {
+                isArr: isArr,
+                isNum: isNum,
+                isFun: isFun,
+                sentry: sentry,
+                thro: thro,
+                ois: ois,
+            }
+        );
+
+        Fun.prototype._compose = _compose;
+
+        Fun.prototype.extend = extend;
+
+        Fun.prototype.$compose = $compose;
+
+        Fun.prototype.strGetObj = strGetObj;
+
+        Fun.prototype.momorize = momorize;
+
     }
 
-    $Q.myError = false;
-    initMethods($Q);
-
-
-
-    function initMethods($Q) {
-        var extend2 = $curry(2, extend);
-
-
-        $Q.prototype.maybe = function _maybe() {
-            var fn = maybe.apply(this, arguments);
-            this._data = fn(this._data);
-            return this;
-        }
-
-        $Q.prototype.extend = function _extend() {
-            var ex = extend2(this._data);
-            this._data = ex.apply(this, arguments);
-            return this;
-        }
-
-        extend($Q.prototype, new Event("QEvent"));
-    }
-
-
-    return $Q
+    return Fun
 
 }))
 
