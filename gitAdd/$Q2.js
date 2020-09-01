@@ -12,21 +12,9 @@
         }
     }
 
-
-
-
-
-    var isObject = type("Object"),
-        isString = type("String"),
-        isRegExp = type("RegExp"),
-        isArr = type("Array"),
+    var isArr = type("Array"),
         isFun = type("Function"),
         isNum = type("Number")
-
-
-    function _isObject(obj) {
-        return obj !== null && typeof obj === 'object'
-    }
 
     function isExist(Q) {
         return Q !== undefined && Q !== null;
@@ -36,24 +24,13 @@
         return Q === undefined || Q === null;
     }
 
-
-    function isTrue(Q) {
-        return Q === true;
-    }
-
-    function isFalse(Q) {
-        return Q === false;
-    }
-
     var kaifaErr = true;
-
-
 
     function err(x) {
         kaifaErr && [].slice.call(arguments).forEach(function (x) { console.error(x) })
     }
 
-
+    // extend :: Object a -> Object b ->  Object a
     function extend(target, sourse) {
         var i = 1,
             args = [].slice.apply(arguments),
@@ -74,8 +51,7 @@
         return target;
     }
 
-
-
+    // momorize :: fn a ->  (cache)fn a
     function momorize(f) {
         var cache = Object.create(null);
         return function () {
@@ -84,8 +60,6 @@
             return cache[arg][0];
         }
     }
-
-
 
     function remove(arr, item) {
         if (arr.length) {
@@ -113,7 +87,7 @@
     }
 
 
-    // str -> bool -> fn 
+    // makeMap :: string -> boolean -> fn 
     function makeMap(
         str,
         lowerCase
@@ -133,7 +107,6 @@
             : (getMap = function (val) { return map[val]; }, getMap.set = set, getMap)
     }
 
-
     function toArray(list, start) {
         start = start || 0;
         var i = list.length - start
@@ -145,7 +118,6 @@
     }
 
 
-    // 特性函数区
     function curry(f, arg, rev) {
         var arg = arg || [];
         return function () {
@@ -153,7 +125,6 @@
             return (f.length <= args.length) ? f.apply(f, rev ? args.reverse() : args) : curry.apply(f, [f, args, rev]);
         }
     }
-    Fun.curry = curry;
 
     function $curry(index, f, arg, rev) {
         var arg = arg || [];
@@ -163,7 +134,7 @@
         }
     }
 
-
+    // sentry :: number ->  fn a -> (curry)fn a
     function sentry(index, fn) {
         var i = 0,
             cache = {};
@@ -175,6 +146,7 @@
         })
     }
 
+    // thro :: number -> fn a -> (thro time)fn a
     var thro = function (time, fn) {
         var run = true;
         if (!fn) { err("thro节流函数 第二参数fn未传 执行默认 time => 200 fn => time方案"); fn = time; time = 200; }
@@ -186,6 +158,7 @@
         }
     }
 
+    //  ois :: number time -> fn a -> (ois time)fn a
     var ois = function (time, fn) {
         var tname = null;
         if (!fn) { err("ois防抖函数 第二参数fn未传 执行默认 time => 200 fn => time方案"); fn = time; time = 200; }
@@ -195,10 +168,6 @@
         }
     }
 
-    // 特性函数区结束
-
-
-    // 过滤函数
 
     //   filterArg :: Fa(a -> b) ->Fb(a -> b) -> Number -> Number -> Fa(Fb(a) -> b ) 
     function filterArg(fn, filter, start, index) {
@@ -224,6 +193,7 @@
         this.filters[x] = f;
         return this;
     }
+
     fArg.prototype.get = function () {
         var filters = this.filters,
             f = this._f;
@@ -299,7 +269,6 @@
         this.names = names;
         this.$Fs = arg;
     }
-
 
     $compose.prototype.set = function (name, val) {
         var names = this.names,
@@ -461,12 +430,6 @@
         return val;
     }
 
-    Fun.repMod = curry(
-        fArg(getMid)
-            .set(0, repMid("-"))
-            .get()
-    );
-
     function strGetObj(str, obj) {
         var ret = "";
         return getMid(repMid("-", "{{-}}"), function (x) {
@@ -572,7 +535,9 @@
 
     function initMethods(Fun) {
         Fun.momorize = momorize;
-
+        Fun.curry = curry;
+        Fun.$curry = $curry;
+        Fun.sentry = sentry;
         extend(Fun.prototype, new Event("$Fun"), $compose.prototype,
             {
                 isArr: isArr,
@@ -580,7 +545,7 @@
                 isFun: isFun,
                 sentry: sentry,
                 thro: thro,
-                ois: ois,
+                ois: ois
             }
         );
 
@@ -594,6 +559,9 @@
 
         Fun.prototype.momorize = momorize;
 
+        Fun.prototype.addFun = function () {
+
+        }
     }
 
     return Fun
