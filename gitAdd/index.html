@@ -52,7 +52,7 @@
                 fn("data", canvas.toDataURL("image/jpeg"));
             }
             , "console",
-            function (x) {
+            function Dom(x) {
                 document.body.innerHTML = "<img src='" + x.data + "'>";
             }
         )
@@ -61,11 +61,6 @@
         
         document.querySelector("input").onchange = yasuo;
 
-
-
-        //  也可以将函数提取到外部作用域中,写出更加易于阅读的执行过程
-        // Fun(Compatibility, async_getFile, async_zoomBase64, dom)
-        
     </script>
 
     <script>

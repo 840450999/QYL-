@@ -24,10 +24,10 @@
         return Q === undefined || Q === null;
     }
 
-    var kaifaErr = true;
+    Fun.err = true;
 
     function err(x) {
-        kaifaErr && [].slice.call(arguments).forEach(function (x) { console.error(x) })
+        Fun.err && [].slice.call(arguments).forEach(function (x) { console.error(x) })
     }
 
     // extend :: Object a -> Object b ->  Object a
@@ -215,6 +215,7 @@
             self = this;
         if (!arg.length) { err("_compose传值为空,请检查代码"); return function (x) { return x }; }
         return function _composeChild(x) {
+            if (arg[0] === undefined) { err("传入的值为空"); return function () { }; }
             if ((typeof arg[0] !== "string") && arg[0].name.search("sync") != -1) {
                 asyncFn(arg[0], _compose(arg.slice(1, arg.length)), x);
                 return undefined;
@@ -268,6 +269,7 @@
 
         this.names = names;
         this.$Fs = arg;
+        this.changeOld = false;
     }
 
     $compose.prototype.set = function (name, val) {
@@ -297,6 +299,7 @@
     $compose.prototype.setOld = function (name, val) {
         var $name = this.names[name];
         if ($name !== undefined) {
+            this.changeOld = true;
             this.names[name] = $name
             this.$Fs[$name] = val;
         }
@@ -304,9 +307,15 @@
     }
 
     $compose.prototype.value = function (x) {
-        var self = this,
-            fns = self.$Fs;
-        return _compose(fns)(isExist(x) ? x : this.$data);
+        var fns = this.$Fs;
+        this.compose = this.compose || _compose(fns);
+
+        if (!this.changeOld) {
+            return this.compose(isExist(x) ? x : this.$data)
+        } else {
+            this.changeOld = false;
+            return (this.compose = _compose(fns))(isExist(x) ? x : this.$data);
+        }
     }
 
 
@@ -360,6 +369,9 @@
 
 
     var stringMethods = {
+        strGetObj: function (x) {
+            return curry(strGetObj)(x)
+        },
         console: function (x) {
             console.log("console=>", x);
             return x;
@@ -408,7 +420,12 @@
             if (custrom(name)) { return $custrom[name](f); };
         }
         if (typeof f === "string") {
-            return stringMethods[f];
+            var ret = '',
+                str = f.replace(/\<(.*?)\>/, function (x, x2) {
+                    ret = x2;
+                    return "";
+                })
+            return stringMethods[f] || (ret && stringMethods[ret](str));
         }
         return f;
     }
