@@ -30,6 +30,13 @@
         Fun.err && [].slice.call(arguments).forEach(function (x) { console.error(x) })
     }
 
+    function getName(f) {
+        if (f.name) {
+            return getName(f);
+        }
+        return f.toString().replace(/function\s*(.*?)\(.*/, function () {  return arguments[1]; });
+    }
+
     // extend :: Object a -> Object b ->  Object a
     function extend(target, sourse) {
         var i = 1,
@@ -216,7 +223,7 @@
         if (!arg.length) { err("_compose传值为空,请检查代码"); return function (x) { return x }; }
         return function _composeChild(x) {
             if (arg[0] === undefined) { err("传入的值为空"); return function () { }; }
-            if ((typeof arg[0] !== "string") && arg[0].name.search("sync") != -1) {
+            if ((typeof arg[0] !== "string") && getName(arg[0]).indexOf("sync") != -1) {
                 asyncFn(arg[0], _compose(arg.slice(1, arg.length)), x);
                 return undefined;
             }
@@ -230,12 +237,12 @@
 
             if (arg.length === 0) { return ret; }
             if (!ret) {
-                if (noErrorMethods($oneFn.name)) { return; }
+                if (noErrorMethods(getName($oneFn))) { return; }
                 err("函数" + oneFn + "断开,同步位置", 0); return;
             }
 
             arg.every(function (f, i) {
-                if ((fname = f.name) && fname.search("sync") != -1) {
+                if ((fname = getName(f)) && fname.indexOf("sync") != -1) {
                     sync = false;
                     if (i === arg.length - 1) { err("asyn为最后的函数,参数fn将不会进行任何操作"); return; }
                     asyncFn(f, _compose(arg.slice(i + 1, arg.length)), ret);
@@ -248,7 +255,7 @@
             arg.unshift(oneFn);
 
             if (index + 1 != (arg.length - 1) && sync) {
-                if (noErrorMethods($oneFn.name)) { return; }
+                if (noErrorMethods(getName($oneFn))) { return; }
                 err("函数" + arg[index + 1] + "断开,同步位置" + (index + 1))
             }
             return ret;
@@ -263,7 +270,7 @@
 
         for (var i = 0; i <= len; i++) {
             if (isFun(sourse = arg[i])) {
-                names[UnBindName(sourse.name)] = i;
+                names[UnBindName(getName(sourse))] = i;
             }
         }
 
@@ -394,7 +401,7 @@
 
 
     function asyncFn(f1, f2, data) {
-        var names = f1.name.split("_");
+        var names = getName(f1).split("_");
         return f1(sentry(!isNaN(+names[1]) ? names[1] : 1, f2), data);
     }
 
@@ -403,8 +410,8 @@
     }
 
     function $(f) {
-        if (isFun(f) && f.name) {
-            var name = UnBindName(f.name).split("_")[0];
+        if (isFun(f) && getName(f)) {
+            var name = UnBindName(getName(f)).split("_")[0];
 
             if (arrayMethods(name)) {
                 return function (data) {
@@ -555,6 +562,7 @@
         Fun.curry = curry;
         Fun.$curry = $curry;
         Fun.sentry = sentry;
+        Fun.strGetObj = strGetObj;
         extend(Fun.prototype, new Event("$Fun"), $compose.prototype,
             {
                 isArr: isArr,
@@ -562,7 +570,8 @@
                 isFun: isFun,
                 sentry: sentry,
                 thro: thro,
-                ois: ois
+                ois: ois,
+
             }
         );
 
