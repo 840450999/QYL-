@@ -32,7 +32,7 @@
 
     function getName(f) {
         if (f.name) {
-            return getName(f);
+            return f.name;
         }
         return f.toString().replace(/function\s*(.*?)\(.*/, function () {  return arguments[1]; });
     }
