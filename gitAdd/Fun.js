@@ -8,7 +8,7 @@
 
     function type(str) {
         return function (o) {
-            return Object.prototype.toString.call(o) === "[object " + str + "]"
+            return Object.prototype.toString.call(o) === "[object " + str + "]";
         }
     }
 
@@ -32,9 +32,9 @@
 
     function getName(f) {
         if (f.name) {
-            return getName(f);
+            return f.name;
         }
-        return f.toString().replace(/function\s*(.*?)\(.*/, function () {  return arguments[1]; });
+        return f.toString().replace(/function\s*(.*?)\(.*/, function () { return arguments[1]; });
     }
 
     // extend :: Object a -> Object b ->  Object a
@@ -254,7 +254,7 @@
 
             arg.unshift(oneFn);
 
-            if (index + 1 != (arg.length - 1) && sync) {
+            if (sync && index + 1 != (arg.length - 1)) {
                 if (noErrorMethods(getName($oneFn))) { return; }
                 err("函数" + arg[index + 1] + "断开,同步位置" + (index + 1))
             }
@@ -531,7 +531,6 @@
 
     function _init(F, data) {
         if (!F) { return; }
-
         extend(F, new $compose(data.compose.map(function (x) {
             return isFun(x) ? x.bind(F) : x;
         })))
@@ -563,15 +562,16 @@
         Fun.$curry = $curry;
         Fun.sentry = sentry;
         Fun.strGetObj = strGetObj;
+        Fun.thro = thro;
+        Fun.ois = ois;
+
         extend(Fun.prototype, new Event("$Fun"), $compose.prototype,
             {
                 isArr: isArr,
                 isNum: isNum,
                 isFun: isFun,
-                sentry: sentry,
                 thro: thro,
-                ois: ois,
-
+                ois: ois
             }
         );
 
