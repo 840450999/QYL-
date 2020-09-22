@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+
+    <canvas id="c1"></canvas>
+    <script src="./cvs.js"></script>
+    <script>
+        var cvs = document.querySelector("#c1"),
+            cv = cvs.getContext("2d");
+
+        var width = window.innerWidth,
+            height = window.innerHeight;
+
+        Object.assign(cvs, { width, height })
+
+        class A extends Yi {
+            constructor() {
+                super(Yi)
+
+            }
+            data() {
+                () => {
+                    let mouseRound = [];
+                    for (let i = 0; i < 20; i++) {
+                        mouseRound.push({
+                            x: Math.random() * 100 - 50,
+                            y: Math.random() * 100 - 50,
+                            r: Math.random() * 7,
+                            color: "#" + Math.random().toString(16).slice(-6)
+                        })
+                    }
+
+                    this.methods = {
+                        line(item, cv) {
+                            cv.beginPath(),
+                                cv.moveTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
+                            cv.lineTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
+                            cv.lineWidth = 1, cv.stroke(), cv.closePath()
+                        }
+                    }
+
+                    return {
+                        mouseX: 0,
+                        mouseY: 0,
+                        mouseRound
+                    }
+                }
+            }
+
+            end() {
+                var cv = this.cv;
+                cv.fillStyle = "rgba(255,255,255,0.1)"
+                cv.fillRect(0, 0, width, height)
+            }
+
+            render() {
+                return {
+                    mouse() {
+                        var data = this.$data;
+                        this.$el.onmousemove = function (e) {
+                            data.mouseX = e.clientX
+                            data.mouseY = e.clientY
+                        }
+                        // return () => Object.assign(data, {})
+                    },
+                    arc() {
+                        var cv = this.cv,
+                            data = this.$data;
+                        var bili = 0,
+                            p = Math.PI * 2 / 100;
+
+                        return function () {
+                            cv.beginPath()
+                            data.mouseRound.forEach((item) => (
+                                this.Eround(data.mouseX + (item.x) * Math.sin(p * bili),
+                                    data.mouseY + (item.y) * Math.cos(p * bili), item.r, item.color)))
+                            bili++;
+                            bili == 100 && (bili = 0)
+                        }
+                    }
+                }
+            }
+        }
+        console.log(new A())
+
+        var yi = new Yi({
+            el: cvs,
+            data: () => {
+                let mouseRound = [];
+                for (let i = 0; i < 20; i++) {
+                    mouseRound.push({
+                        x: Math.random() * 100 - 50,
+                        y: Math.random() * 100 - 50,
+                        r: Math.random() * 7,
+                        color: "#" + Math.random().toString(16).slice(-6)
+                    })
+                }
+                return {
+                    mouseX: 0,
+                    mouseY: 0,
+                    mouseRound
+                }
+            },
+            methods: {
+                line(item, cv) {
+                    cv.beginPath(),
+                        cv.moveTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
+                    cv.lineTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
+                    cv.lineWidth = 1, cv.stroke(), cv.closePath()
+                }
+            },
+            render: {
+                mouse() {
+                    var data = this.$data;
+                    this.$el.onmousemove = function (e) {
+                        data.mouseX = e.clientX
+                        data.mouseY = e.clientY
+                    }
+                    // return () => Object.assign(data, {})
+                },
+                arc() {
+                    var cv = this.cv,
+                        data = this.$data;
+                    var bili = 0,
+                        p = Math.PI * 2 / 100;
+
+                    return function () {
+                        cv.beginPath()
+                        data.mouseRound.forEach((item) => (
+                            this.Eround(data.mouseX + (item.x) * Math.sin(p * bili),
+                                data.mouseY + (item.y) * Math.cos(p * bili), item.r, item.color)))
+                        bili++;
+                        bili == 100 && (bili = 0)
+                    }
+                }
+            }, end: function () {
+                var cv = this.cv;
+                cv.fillStyle = "rgba(255,255,255,0.1)"
+                cv.fillRect(0, 0, width, height)
+            }
+        })
+        yi.start()
+
+
+
+    </script>
+
+</body>
+
+</html>
