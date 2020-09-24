@@ -10,12 +10,14 @@
         body {
             margin: 0;
             padding: 0;
+            /* background: url('./素材/room.jpg') no-repeat 0 0 /cover; */
+            /* background-attachment: fixed;
+            background-clip: content-box */
         }
     </style>
 </head>
 
 <body>
-
 
     <canvas id="c1"></canvas>
     <script src="./cvs.js"></script>
@@ -26,135 +28,144 @@
         var width = window.innerWidth,
             height = window.innerHeight;
 
-        Object.assign(cvs, { width, height })
-
-        class A extends Yi {
-            constructor() {
-                super(Yi)
-
-            }
-            data() {
-                () => {
-                    let mouseRound = [];
-                    for (let i = 0; i < 20; i++) {
-                        mouseRound.push({
-                            x: Math.random() * 100 - 50,
-                            y: Math.random() * 100 - 50,
-                            r: Math.random() * 7,
-                            color: "#" + Math.random().toString(16).slice(-6)
-                        })
-                    }
-
-                    this.methods = {
-                        line(item, cv) {
-                            cv.beginPath(),
-                                cv.moveTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
-                            cv.lineTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
-                            cv.lineWidth = 1, cv.stroke(), cv.closePath()
-                        }
-                    }
-
-                    return {
-                        mouseX: 0,
-                        mouseY: 0,
-                        mouseRound
-                    }
-                }
-            }
-
-            end() {
-                var cv = this.cv;
-                cv.fillStyle = "rgba(255,255,255,0.1)"
-                cv.fillRect(0, 0, width, height)
-            }
-
-            render() {
-                return {
-                    mouse() {
-                        var data = this.$data;
-                        this.$el.onmousemove = function (e) {
-                            data.mouseX = e.clientX
-                            data.mouseY = e.clientY
-                        }
-                        // return () => Object.assign(data, {})
-                    },
-                    arc() {
-                        var cv = this.cv,
-                            data = this.$data;
-                        var bili = 0,
-                            p = Math.PI * 2 / 100;
-
-                        return function () {
-                            cv.beginPath()
-                            data.mouseRound.forEach((item) => (
-                                this.Eround(data.mouseX + (item.x) * Math.sin(p * bili),
-                                    data.mouseY + (item.y) * Math.cos(p * bili), item.r, item.color)))
-                            bili++;
-                            bili == 100 && (bili = 0)
-                        }
-                    }
-                }
-            }
-        }
-        console.log(new A())
+        Yi.extend(cvs, { width: width, height: height })
 
         var yi = new Yi({
             el: cvs,
-            data: () => {
-                let mouseRound = [];
-                for (let i = 0; i < 20; i++) {
+            data: function () {
+
+                var mouseRound = [],
+                    randomAB = Yi.compute.randomAB
+                for (var i = 0; i < 20; i++) {
                     mouseRound.push({
                         x: Math.random() * 100 - 50,
-                        y: Math.random() * 100 - 50,
+                        y: Math.random() * 100,
                         r: Math.random() * 7,
                         color: "#" + Math.random().toString(16).slice(-6)
                     })
                 }
+
+                var mouseLine = [];
+                for (var i = 0; i < 50; i++) {
+                    mouseLine.push({
+                        x: Math.random() * 100 + 50,
+                        y: Math.random() * 100 + 50,
+                        theta: randomAB(0, 360),
+                        interval: randomAB(50, 80),
+                        long: 5,
+                        orient: ~~(Math.random() * 360),
+                        color: "#" + Math.random().toString(16).slice(-6)
+                    })
+                }
                 return {
-                    mouseX: 0,
-                    mouseY: 0,
-                    mouseRound
+                    mouseX: width / 2,
+                    mouseY: height / 2,
+                    oldX: width / 2 ,
+                    oldY: height / 2 ,
+                    mouseSpeed: 0.1,
+                    mouseRound: mouseRound,
+                    mouseLine: mouseLine,
+                    myline: {
+                        speed: 2,
+                        cycle: 0
+                    }
                 }
             },
-            methods: {
-                line(item, cv) {
-                    cv.beginPath(),
-                        cv.moveTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
-                    cv.lineTo(data.mouseX + (item.x) * Math.sin(p * bili), data.mouseY + (item.y) * Math.cos(p * bili))
-                    cv.lineWidth = 1, cv.stroke(), cv.closePath()
+            get: function () {
+                var myline = this.$data.myline,
+                    angle = Yi.compute.angle,
+                    sin = Math.sin,
+                    cos = Math.cos
+                return {
+                    lineX: Yi.cache(function lineX(x) {
+                        if (arguments.length > 1) {
+                            return cos(angle([].slice.call(arguments).reduce(function (a, b) { return a + b })));
+                        }
+                        return cos(argle(x))
+                    }),
+                    lineY: Yi.cache(function (x) {
+                        if (arguments.length > 1) {
+                            return sin(angle([].slice.call(arguments).reduce(function (a, b) { return a + b })));
+                        }
+                        return sin(argle(x))
+                    })
                 }
-            },
+            }
+            ,
             render: {
-                mouse() {
+                mouse: function () {
                     var data = this.$data;
                     this.$el.onmousemove = function (e) {
-                        data.mouseX = e.clientX
-                        data.mouseY = e.clientY
+                        data.mouseX = e.pageX
+                        data.mouseY = e.pageY
                     }
-                    // return () => Object.assign(data, {})
+
                 },
-                arc() {
-                    var cv = this.cv,
-                        data = this.$data;
-                    var bili = 0,
-                        p = Math.PI * 2 / 100;
+                line: function (get) {
+                    var data = this.$data,
+                        mouseLine = this.$data.mouseLine,
+                        self = this,
+                        myline = data.myline;
+
+                    function renderLine(item, oldData) {
+                        self.cv.strokeStyle = item.color
+                        self._("线端点", "round")
+                        self._(
+                            "线",
+                            data.oldX - 1 + item.interval * get.lineX(data.cycle, item.theta),
+                            data.oldY - 1 + item.interval * get.lineY(data.cycle, item.theta),
+                            data.mouseX + item.interval * get.lineX(data.cycle, item.theta),
+                            data.mouseY + item.interval * get.lineY(data.cycle, item.theta),
+                            item.long)
+                    }
+
 
                     return function () {
-                        cv.beginPath()
-                        data.mouseRound.forEach((item) => (
-                            this.Eround(data.mouseX + (item.x) * Math.sin(p * bili),
-                                data.mouseY + (item.y) * Math.cos(p * bili), item.r, item.color)))
-                        bili++;
-                        bili == 100 && (bili = 0)
+                        self._("阴影", "rgba(0,0,0,0.5)", 5, 5);
+                        self.cv.globalAlpha = 0.5;
+                        mouseLine.forEach(function (item) {
+                            renderLine(item, { x: data.mouseX, y: data.mouseY })
+                        });
+                        self.cv.fill()
+
+                        self._("阴影", "rgba(0,0,0,0)");
                     }
+                },
+                myline: function (item) {
+                    var cycle = 360,
+                        data = this.$data,
+                        speed = this.$data.myline.speed;
+
+                    return function (get) {
+                        (cycle -= speed) > 0 || (cycle = 360);
+                        data.cycle = cycle;
+                    }
+
                 }
+                // ,
+                // back: function () {
+                //     var load = false;
+                //     var video = this.playVideo("./素材/room.mp4", function () { load = true });
+                //     return function () {
+                //         if (load) {
+                //             this.$cv.drawImage(video, 0, 0, width, height)
+                //         }
+                //     }
+                // }
             }, end: function () {
-                var cv = this.cv;
-                cv.fillStyle = "rgba(255,255,255,0.1)"
-                cv.fillRect(0, 0, width, height)
+                var cv = this.cv,
+                data = this.$data;
+                data.oldX += (data.mouseX - data.oldX) * data.mouseSpeed;
+                data.oldY += (data.mouseY - data.oldY) * data.mouseSpeed;
+                cv.fillStyle = "rgba(0,0,0,0.1)"
+                cv.fillRect(0, 0, width, height);
+                // cv.clearRect(0, 0, width, height)
             }
         })
         yi.start()
+
+
+
 
 
 

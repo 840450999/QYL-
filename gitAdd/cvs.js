@@ -16,9 +16,6 @@
         isFun = type("Function"),
         isNum = type("Number")
 
-    var PI2 = Math.PI * 2
-
-
     function isExist(Q) {
         return Q !== undefined && Q !== null;
     }
@@ -27,6 +24,19 @@
         return Q === undefined || Q === null;
     }
 
+
+    var PI2 = Math.PI * 2,
+        PI360 = PI2 / 360;
+
+    var angle = momorize(function (n) {
+        if (n > 360) { n = n % 360 };
+        return PI360 * n;
+    })
+
+    var sin = Math.sin,
+        cos = Math.cos,
+        tan = Math.tan,
+        random = Math.random;
 
     var bind = (function () {
         if (Function.prototype.bind) {
@@ -42,6 +52,30 @@
     })()
 
 
+    // 尾递归优化
+    function tco(f) {
+        var value;
+        var active = false;
+        var accumulated = [];
+
+        return function accumulator() {
+            accumulated.push(arguments);
+            if (!active) {
+                active = true;
+                while (accumulated.length) {
+                    value = f.apply(this, accumulated.shift());
+                }
+                active = false;
+                return value;
+            }
+        };
+    }
+
+
+    function randomAB(a, b) {
+        var section = b - a;
+        return random() * section + a;
+    }
 
     function getName(f) {
         if (f.name) {
@@ -75,15 +109,7 @@
         return target;
     }
 
-    // momorize :: fn a ->  (cache)fn a
-    function momorize(f) {
-        var cache = Object.create(null);
-        return function () {
-            var arg = JSON.stringify(arguments);
-            cache[arg] = cache[arg] || [f.apply(f, arguments)];
-            return cache[arg][0];
-        }
-    }
+
 
     function remove(arr, item) {
         if (arr.length) {
@@ -108,6 +134,16 @@
             enumerable: !!enumerable
         })
         return val;
+    }
+
+    // momorize :: fn a ->  (cache)fn a
+    function momorize(f) {
+        var cache = Object.create(null);
+        return function () {
+            var arg = JSON.stringify(arguments);
+            cache[arg] = cache[arg] || [f.apply(f, arguments)];
+            return cache[arg][0];
+        }
     }
 
 
@@ -195,45 +231,7 @@
     }
 
 
-    //   filterArg :: Fa(a -> b) ->Fb(a -> b) -> Number -> Number -> Fa(Fb(a) -> b ) 
-    function filterArg(fn, filter, start, index) {
-        index = isUnExist(index) ? 1 : index;
-        start = isUnExist(start) ? 0 : start;
-        return function () {
-            var arg = [].slice.call(arguments);
-            while (index--) { arg.splice(start + index, 1, filter(arg[start + index])) };
-            return fn.apply(fn, arg);
-        }
-    }
 
-    function fArg(f, filters) {
-        if (this instanceof fArg) {
-            this._f = f;
-            this.filters = filters || {};
-        } else {
-            return new fArg(f, filters);
-        }
-    }
-
-    fArg.prototype.set = function (x, f) {
-        this.filters[x] = f;
-        return this;
-    }
-
-    fArg.prototype.get = function () {
-        var filters = this.filters,
-            f = this._f;
-
-        return function () {
-            var arg = [].slice.apply(arguments);
-
-            for (var i in filters) {
-                arg[i] = filters[i](arg[i]);
-            }
-
-            return f.apply(f, arg);
-        }
-    }
 
 
     function Event(name) {
@@ -313,25 +311,30 @@
             for (var fun in modData) {
                 if (isFun(course = modData[fun])) {
                     render[fun] = true;
-                    course = bind(course, yi)() || function () { return; };
+                    course = bind(course, yi)(yi.get) || function () { return; };
                     mods.push(bind(course, yi));
                     modIndex[fun] = i++;
                 }
             }
             yi.$modIndex = modIndex;
             yi.$render = render;
-            yi.render = mods;
-
+            yi.Frender = mods;
         }
     }
 
+    function cloneCanvas(el) {
+        var cv = el.cloneNode(el);
+        if (!cv.getContext) {
+            initElement(cv);
+        }
+        return cv;
+    }
 
 
     function initCv(yi) {
         var el;
-
         if ((el = yi.option.el)) {
-            var bufferCv = el.cloneNode(),
+            var bufferCv = cloneCanvas(el),
                 type = yi.option.type || "2d";
 
             yi.cv = bufferCv.getContext(type)
@@ -341,8 +344,12 @@
         }
     }
 
+
     function initMethods(yi) {
         var methods = yi.option.methods;
+        for (var key in methods) {
+            key in yi || (yi[key] = bind(methods[key], yi))
+        }
     }
 
     function initLeftcycle(yi) {
@@ -350,6 +357,16 @@
         opt.end && yi.$on("end", bind(opt.end, yi));
         opt.stop && yi.$on("isStop", bind(opt.stop, yi));
         opt.create && yi.$on("create", bind(opt.create, yi))
+    }
+
+    function initGet(yi) {
+        var getter = yi.option.get.call(yi);
+        yi.get = Object.create(null);
+
+        for (var key in getter) {
+            yi.get[key] = bind(getter[key], yi)
+        }
+
     }
 
     function _init(yi, opt) {
@@ -360,22 +377,20 @@
         initLeftcycle(yi);
         initCv(yi);
         initData(yi);
-        initRender(yi);
         initMethods(yi);
+        initGet(yi)
+        initRender(yi);
     }
-    function render(yi) {
-        yi.$emit("isStop");
-        yi.$cv.clearRect(0, 0, width, height)
-        for (var len = yi.render.length - 1; len >= 0; len--) {
-            yi.render[len]();
+
+    var Animation = (function () {
+        if ("requestAnimationFrame" in window) {
+            return requestAnimationFrame;
         }
+        return function (f) {
+            setTimeout(f, 1);
+        }
+    })();
 
-        yi.$cv.drawImage(yi.$bufferCv, 0, 0);
-        yi.$emit("end")
-
-    }
-
-    
 
     function Yi(opt) {
         var oneType = Object.prototype.toString.call(opt).replace(/\[object (.*?)\]/, "$1");
@@ -387,32 +402,156 @@
 
     Yi.prototype.start = function () {
         var self = this;
-        ; (function cyclic() {
-            if (self.stop) { return; }
-            render(self);
-            requestAnimationFrame(cyclic)
-        })()
+            ; (function cyclic() {
+                if (self.stop) { return; }
+                self.render();
+                Animation(cyclic)
+            })()
     }
 
-    Yi.prototype.Eround = function (x, y, r, color) {
-        var cv = this.cv;
-        if (color) {
+    Yi.prototype.oneRender = function () {
+        this.render(self)
+    }
+
+    Yi.prototype.playVideo = function (src, fn) {
+        var video;
+        if (typeof src === "string") {
+            video = document.createElement("video")
+            video.src = src
+        } else {
+            video = src;
+        }
+        video.loop = true;
+        video.autoplay = true
+        video.muted = true;
+        video.play();
+        if (fn) {
+            video.oncanplay = fn;
+        }
+        return video;
+    }
+    var chinese = makeMap("圆实,圆空,矩空,矩实,线,向线,着色,阴影"),
+        chineseObj = {
+            "圆实": "$round",
+            "圆空": "",
+            "矩空": "",
+            "矩实": "",
+            "向线": "$line",
+            "线": "line",
+            "线端点":"lineCap",
+            "颜色": "",
+            "阴影":"shadow"
+        }
+
+    Yi.prototype._ = function (type) {
+        if (chinese(type)) {
+            var arg = toArray(arguments);
+            arg.shift();
+            this[chineseObj[type]].apply(this, arg)
+        }
+    }
+
+    Yi.prototype.render = function render(yi) {
+        var yi = yi || this,
+            el = yi.$el,
+            sourse,
+            Fns = yi.Frender
+        yi.$emit("isStop");
+        yi.$cv.clearRect(0, 0, el.width, el.height)
+        for (var len = Fns.length - 1; len >= 0; len--) {
+            if ((sourse = Fns[len]) instanceof Yi) {
+                sourse.render(yi.get);
+            } else {
+                sourse(yi.get);
+            }
+        }
+
+        yi.$cv.drawImage(yi.$bufferCv, 0, 0);
+        yi.$emit("end")
+
+    }
+    Yi.prototype.color = function (color) {
+        this.cv.fillStyle = color;
+        this.cv.stroke = color;
+        return this;
+    }
+
+    Yi.prototype.$round = function Eround(x, y, r, color) {
+        var self = this,
+            cv = this.cv;
+
+        if (typeof color === "string") {
             cv.beginPath()
             cv.fillStyle = color;
             cv.arc(x, y, r, 0, PI2)
             cv.fill();
             return this;
         }
-        cv.arc(x, y, r, 0, PI2)
-        return this;
+        if (arguments.length > 2) {
+            cv.arc(x, y, r, 0, PI2)
+            return this;
+        }
+        if (isArr(x)) {
+            x.forEach(function (item) {
+                $round.apply(self, item)
+            })
+            return this;
+        }
+
+
+    }
+
+    Yi.prototype.$line = function (x, y, long, orient, width) {
+        var self = this,
+            cv = this.cv,
+            oldWidth = cv.lineWidth;
+        cv.beginPath();
+        width && (cv.lineWidth = width);
+        cv.moveTo(x, y)
+        cv.lineTo(x + long * cos(angle(orient)), y + long * sin(angle(orient)))
+        cv.stroke();
+        cv.closePath()
+        cv.lineWidth = oldWidth;
+    }
+
+    Yi.prototype.line = function (x, y, $x, $y, width,lineCap) {
+        var self = this,
+            cv = this.cv,
+            oldWidth = cv.lineWidth;
+        cv.beginPath();
+        width && (cv.lineWidth = width);
+        cv.moveTo(x, y)
+        cv.lineTo($x, $y)
+        cv.stroke();
+        cv.closePath()
+        cv.lineWidth = oldWidth;
+    }
+    Yi.prototype.lineCap = function (type){
+           this.cv.lineCap = type;
+    }
+
+    Yi.prototype.shadow = function(color,x,y,blur){
+        var cv = this.cv;
+       cv.shadowColor = color;
+       x&&(cv.shadowOffsetX = x);
+       y&&(cv.shadowOffsetX = y);
+       blur&&(cv.shadowBlur = blur);
     }
 
 
+    Yi.compute = Object.create(null);
+    extend(Yi.compute, {
+         randomAB: randomAB,
+         angle:angle
+    })
+    Yi.tco = tco;
     Yi.curry = curry;
     Yi.$curry = $curry;
     Yi.cache = momorize;
     Yi.thro = thro;
     Yi.ois = ois;
+    Yi.extend = extend;
+
     return Yi;
 }))
 
